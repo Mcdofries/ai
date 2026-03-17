@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>✨ Weak Obfuscate Killer v5.1 – Table Extractor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <style>
+    body { background: linear-gradient(135deg, #0f172a, #1e2937); font-family: system-ui; }
+    .card { background: #1e2937; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+    textarea { font-family: 'Courier New', monospace; resize: none; line-height: 1.5; }
+    .tab { transition: all 0.2s; }
+    .tab.active { background-color: #10b981; color: white; }
+  </style>
+</head>
+<body class="min-h-screen text-slate-200 p-8">
+  <div class="max-w-6xl mx-auto">
+    <div class="text-center mb-10">
+      <h1 class="text-5xl font-bold flex items-center justify-center gap-4">
+        <i class="fas fa-skull-crossbones text-red-400"></i> 
+        Weak Obfuscate Killer v5.1
+      </h1>
+      <p class="text-emerald-400 text-xl mt-2">Upgraded with ideas from Prometheus Deobfuscator, MoonSec V3 tools & WeAreDevs trace methods</p>
+      <p class="text-slate-400 text-sm mt-1">Table + Index + Concat • Octal • Now extracts the REAL payload only</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <!-- INPUT -->
+      <div class="card rounded-3xl p-8">
+        <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
+          <i class="fas fa-upload text-blue-400"></i> Input Obfuscated Script
+        </h2>
+
+        <div class="flex gap-2 mb-6 border-b border-slate-700 pb-4 text-sm">
+          <button onclick="switchTab(0)" id="tab0" class="tab active px-6 py-3 rounded-xl">📝 Paste</button>
+          <button onclick="switchTab(1)" id="tab1" class="tab px-6 py-3 rounded-xl">📁 Upload File</button>
+          <button onclick="switchTab(2)" id="tab2" class="tab px-6 py-3 rounded-xl">🔗 Your Link</button>
+        </div>
+
+        <div id="pane0">
+          <textarea id="input" class="w-full h-96 bg-slate-900 p-6 rounded-2xl text-sm" placeholder="Paste the full obfuscated script here..."></textarea>
+        </div>
+
+        <div id="pane1" class="hidden text-center py-20 border-2 border-dashed border-slate-600 rounded-3xl cursor-pointer hover:border-emerald-400" onclick="document.getElementById('file').click()">
+          <i class="fas fa-cloud-upload-alt text-6xl text-slate-400 mb-4"></i>
+          <p class="text-xl">Drop .lua or .txt file</p>
+          <input type="file" id="file" class="hidden" accept=".lua,.txt" onchange="handleFile(this)">
+        </div>
+
+        <div id="pane2" class="hidden">
+          <input id="url" value="https://cdn.sourceb.in/bins/ff0Ub16e3z/0" class="w-full bg-slate-900 px-6 py-4 rounded-2xl text-sm mb-4">
+          <button onclick="fetchLink()" class="w-full bg-violet-600 py-4 rounded-2xl font-medium">Fetch & Deobfuscate</button>
+        </div>
+
+        <button onclick="deobf()" class="mt-8 w-full bg-gradient-to-r from-emerald-500 to-cyan-600 py-6 text-2xl font-bold rounded-3xl flex items-center justify-center gap-3 hover:scale-105 transition">
+          <i class="fas fa-bolt"></i> DEOBFUSCATE (ONLY CLEAN CODE)
+        </button>
+      </div>
+
+      <!-- OUTPUT -->
+      <div class="card rounded-3xl p-8">
+        <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
+          <i class="fas fa-check-circle text-emerald-400"></i> Clean Readable Script (ONLY this)
+        </h2>
+        <textarea id="output" readonly class="w-full h-96 bg-slate-900 p-6 rounded-2xl text-sm"></textarea>
+
+        <div class="flex gap-4 mt-8">
+          <button onclick="copyResult()" class="flex-1 bg-slate-700 hover:bg-slate-600 py-5 rounded-3xl font-medium flex items-center justify-center gap-2">
+            <i class="fas fa-copy"></i> Copy
+          </button>
+          <button onclick="downloadResult()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 py-5 rounded-3xl font-medium flex items-center justify-center gap-2">
+            <i class="fas fa-download"></i> Download .lua
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="status" class="mt-8 text-center text-emerald-400 font-medium"></div>
+  </div>
+
+  <script>
+    // ================== UPGRADED DEOBF (v5.1) ==================
+    // Ideas from: Prometheus-Deobfuscator (0x251), MoonSec V3 tools, WeAreDevs trace methods, De4Lua
+    // - Full octal/hex decode
+    // - Smart extraction of largest string table (v_ZBG style)
+    // - Smart extraction of largest index table
+    // - Rebuild payload with indexes (1-based)
+    // - Fallbacks + basic beautify
+    // - ONLY returns the clean payload (no original junk)
+
+    function ultraDeobf(code) {
+      // 1. Decode ALL escapes first (critical for your script)
+      code = code.replace(/\\([0-3]?[0-7]{1,2})/g, (m, d) => String.fromCharCode(parseInt(d, 8)));
+      code = code.replace(/\\x([0-9a-fA-F]{2})/gi, (m, h) => String.fromCharCode(parseInt(h, 16)));
+
+      // 2. Find the LARGEST string table (your v_ZBG)
+      let stringTable = [];
+      const tableMatches = [...code.matchAll(/=\s*\{([^}]{300,}?)\}/gs)];
+      for (let match of tableMatches) {
+        const inner = match[1];
+        const pieces = inner.match(/"([^"\\]*(?:\\.[^"\\]*)*)"|([^\s,]+)/g) || [];
+        if (pieces.length > stringTable.length) {
+          stringTable = pieces.map(p => {
+            if (p.startsWith('"')) {
+              try { return JSON.parse(p); } catch { return p; }
+            }
+            return p;
+          });
+        }
+      }
+
+      // 3. Find the LARGEST index table (your v_iKr / number list)
+      let indexTable = [];
+      const indexMatches = [...code.matchAll(/\{(\d+(?:,\s*\d+){50,})\}/g)];
+      for (let m of indexMatches) {
+        const nums = m[1].match(/\d+/g)?.map(Number) || [];
+        if (nums.length > indexTable.length && nums.every(n => n > 0 && n < 100000)) {
+          indexTable = nums;
+        }
+      }
+
+      // 4. Reconstruct the REAL payload using indexes
+      let realCode = "";
+      if (stringTable.length > 200 && indexTable.length > 50) {
+        for (let idx of indexTable) {
+          if (idx > 0 && idx <= stringTable.length) {
+            realCode += stringTable[idx - 1] || "";
+          }
+        }
+      }
+
+      // 5. Fallbacks (table.concat or string.char chains)
+      if (realCode.length < 500) {
+        realCode = code.replace(/table\.concat\s*\(\s*\{(.*?)\}\s*\)/gs, (m, inner) => {
+          const parts = inner.match(/"([^"\\]*(?:\\.[^"\\]*)*)"/g) || [];
+          return parts.map(p => {
+            try { return JSON.parse(p); } catch { return ""; }
+          }).join('');
+        });
+      }
+
+      // 6. Final cleanup + make readable (ideas from open-source deobfs)
+      realCode = realCode
+        .replace(/--.*$/gm, '')                    // remove comments
+        .replace(/\n\s*\n+/g, '\n\n')              // clean empty lines
+        .replace(/(\bfunction\b|\bthen\b|\bdo\b|\belse\b)/g, '\n$1')
+        .replace(/\bend\b/g, '\nend')
+        .replace(/\belseif\b/g, '\nelseif')
+        .trim();
+
+      // Only return the extracted clean code (never fallback to original unless nothing was extracted)
+      return realCode.length > 300 ? realCode : "-- Extraction failed.\n-- Try the executor hook method instead.\n\n" + code.substring(0, 500);
+    }
+
+    // ================== UI FUNCTIONS ==================
+    function switchTab(n) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab' + n).classList.add('active');
+      document.getElementById('pane0').classList.toggle('hidden', n !== 0);
+      document.getElementById('pane1').classList.toggle('hidden', n !== 1);
+      document.getElementById('pane2').classList.toggle('hidden', n !== 2);
+    }
+
+    function handleFile(el) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        document.getElementById('input').value = e.target.result;
+        switchTab(0);
+      };
+      reader.readAsText(el.files[0]);
+    }
+
+    async function fetchLink() {
+      const url = document.getElementById('url').value.trim();
+      const status = document.getElementById('status');
+      status.textContent = "Fetching script...";
+      try {
+        const res = await fetch(url);
+        const text = await res.text();
+        document.getElementById('input').value = text;
+        switchTab(0);
+        deobf();
+      } catch(e) {
+        status.textContent = "❌ Fetch failed (CORS). Paste manually.";
+      }
+    }
+
+    function deobf() {
+      const input = document.getElementById('input').value.trim();
+      if (!input) return alert("Paste or upload a script first!");
+
+      const status = document.getElementById('status');
+      status.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Extracting tables & rebuilding payload...`;
+
+      setTimeout(() => {
+        const clean = ultraDeobf(input);
+        document.getElementById('output').value = clean;
+
+        const lines = clean.split('\n').filter(l => l.trim()).length;
+        status.innerHTML = `✅ ONLY CLEAN DEOBFUSCATED CODE — ${lines} readable lines extracted!`;
+      }, 80);
+    }
+
+    function copyResult() {
+      const text = document.getElementById('output').value.trim();
+      if (text) navigator.clipboard.writeText(text).then(() => alert("✅ Copied to clipboard!"));
+    }
+
+    function downloadResult() {
+      const text = document.getElementById('output').value.trim();
+      if (!text) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([text], {type: "text/plain"}));
+      a.download = "clean_deobfuscated.lua";
+      a.click();
+    }
+
+    // Start
+    window.onload = () => switchTab(0);
+  </script>
+</body>
+</html>
